@@ -1,0 +1,296 @@
+---
+title: "Prepare aquaculture nodes"
+author: "Simone Stevenson"
+date: "17/05/2022"
+output: html_document
+objective: To prepare the nodes of New Zealand's aquaculture traffic network
+---
+
+```{r clear space,include = FALSE}
+
+rm(list = ls())
+
+```
+
+
+```{r setup, include=FALSE}
+
+# https://bookdown.org/yihui/rmarkdown/r-code.html
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE,
+  warnings = FALSE, error = FALSE)
+
+```
+
+```{r project info}
+
+# Projection info
+
+NumericEPSG <- 3994
+
+CentreCoords <- c(-42.22, 173.40)
+
+# These will be used to label your output files, update at beginning of session
+
+Pathway <- "Aquaculture"
+
+Component <- "Nodes"
+
+#If you need to add an additional descriptor to your file (if not just make NA)
+Label <- "OnWaterFarms"
+
+Version <- "0"
+
+Author <- "SS"
+
+CleanFileName <- paste0("Clean_", Pathway, Component, "_", Author, "_", Version)
+
+CleanFileName
+
+WIPFileName <- paste0("WIP_", Pathway, Component, "_", Author, "_", Version)
+
+WIPFileName
+
+```
+Directory path to git repo
+
+Simone's deakin laptop
+
+cd "C:/Users/ssimone/OneDrive - Deakin University/MSEAC/Code/git_code/RA1.4_Aquaculture"
+
+remote repo https://github.com/Simonestevo/RA1.4_Aquaculture
+
+```{r libraries}
+# Install packages as needed (will install any packages you don't already have)
+if (!require(tidyverse)) install.packages('tidyverse')
+if (!require(tidylog)) install.packages('tidylog')
+if (!require(sf)) install.packages('sf')
+if (!require(leaflet)) install.packages('leaflet')
+if (!require(scales)) install.packages('scales')
+
+## Data wrangling
+library(tidyverse)
+library(tidylog)
+library(sf)
+
+## Analysis
+
+
+## Viz
+library(leaflet)
+library(scales)
+
+```
+
+
+```{r ggplot theme}
+
+plot_theme <- theme(panel.background = element_blank(),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              legend.position = "bottom",
+              legend.key.size = unit(0.25, 'cm'),
+              plot.title = element_text(size = 10, face = "bold"),
+              legend.title=element_text(size=6), 
+              legend.text=element_text(size=5),
+              axis.line = element_line(colour = "black"),
+              axis.title.x = element_text(size=8),
+              axis.title.y = element_text(size=8),
+              axis.text.x = element_text(size=8),
+              axis.text.y = element_text(size=8),
+              axis.ticks.x = element_blank(), 
+              axis.ticks.y = element_blank())
+
+```
+
+```{r colour palettes, eval=FALSE}
+
+show_col(viridis_pal()(20))
+show_col(viridis_pal(option = "plasma")(20))
+show_col(viridis_pal(option = "magma")(20))
+show_col(viridis_pal(option = "inferno")(20))
+show_col(viridis_pal(option = "mako")(20))
+show_col(viridis_pal(option = "cividis")(20))
+show_col(viridis_pal(option = "rocket")(20))
+show_col(viridis_pal(option = "turbo")(20))
+
+```
+
+```{r set up directories}
+
+ProjectDirectory <- 'C:/Users/ssimone/OneDrive - Deakin University/MSEAC/Data/test_structure/CrossProjectData'
+
+# Get the date
+
+today <- Sys.Date()
+
+# Create a directory to store raw inputs as received
+
+inputs <- file.path(ProjectDirectory, "1_Inputs")
+
+if (!"1_Inputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+  
+  dir.create(inputs)
+  
+  print("creating directory to store input files")
+  
+} else {
+  
+  print("found existing input directory")
+  
+}
+
+# Create a directory to store current work in progress and files created in R
+
+wip_r_directory <- file.path(ProjectDirectory, "2_WorkInProgressR")
+
+if (!"2_WorkInProgressR" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+  
+  dir.create(wip_r_directory)
+  
+  print("creating directory to store R wip files")
+  
+} else {
+  
+  print("found existing wip directory")
+  
+}
+
+# Create a directory to store current work in progress and files created in GIS
+# software then used by this code
+
+wip_gis_directory <- file.path(ProjectDirectory, "3_WorkInProgressGIS")
+
+if (!"3_WorkInProgressGIS" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+  
+  dir.create(wip_gis_directory)
+  
+  print("creating directory to store GIS wip files")
+  
+} else {
+  
+  print("found existing GIS wip directory")
+  
+}
+
+# Create a directory to store all finalised outputs
+
+processed_output_directory <- file.path(ProjectDirectory, "4_CleanOutputs")
+
+if (!"4_CleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+  
+  dir.create(processed_output_directory)
+  
+  print("creating directory to store outputs")
+  
+} else {
+  
+  print("found existing outputs directory")
+  
+}
+
+# # Create a sub-directory to store finalised outputs by date
+# 
+# todays_processed_output_directory <- file.path(processed_output_directory, 
+#                                                paste(today, "4_CleanOutputs",
+#                                                      sep = "_"))
+# 
+# if (!today %in% basename(list.dirs(processed_output_directory))) { # Check folder has not already been created
+#   
+#   dir.create(todays_processed_output_directory)
+#   
+#   print("creating directory to store today's final outputs")
+#   
+# } else {
+#   
+#   print("found existing outputs directory")
+#   
+# }
+
+```
+
+
+```{r load data, include = FALSE}
+list.files(file.path(inputs, Pathway))
+
+FarmsShp <- st_read(file.path(inputs, Pathway, "MPICurrentMarineFarms",
+                              "MPI_CurrentMarineFarms_11Dec2020.shp"))
+
+list.files(file.path(inputs, "Geographic"), recursive = TRUE)
+
+RegionsShp <- st_read(file.path(inputs, "Geographic", "statsnzregional-council-2020-generalised-SHP",
+                              "regional-council-2020-generalised.shp"))
+```
+
+```{r look at data}
+
+# Check the projection
+st_crs(FarmsShp)
+
+# Check attributes and for NA vals
+summary(FarmsShp)
+
+# Remove the Z dimension (depth??)
+
+FarmsShp <- st_zm(FarmsShp)
+
+# Project into WGS84 for the leaflet map
+FarmsShpWGS84 <- st_transform(FarmsShp, 4326)
+RegionsShpWGS84 <- st_transform(RegionsShp, 4326) %>% 
+                   mutate(col = "green")
+
+RegionPal <- colorFactor("viridis", domain = as.factor(RegionsShpWGS84$REGC2020_1))
+
+# Check it looks right
+
+st_crs(FarmsShpWGS84)
+
+# Make a quick plot to look at the data
+FarmsShpWGS84 %>% 
+  leaflet() %>% 
+  addTiles(group = "Basemap") %>% 
+  addPolygons(data = RegionsShpWGS84, weight=2,col = 'black',
+              fillColor = ~RegionPal(REGC2020_1),
+              highlightOptions = highlightOptions(color='white',weight=1,
+                                                  bringToFront = TRUE)) %>% 
+    addPolygons(group = "Client_nam") %>% 
+  setView(173.40, -42.22, zoom = 5)
+
+```
+
+```{r get centroids}
+
+FarmsShp <- FarmsShp %>% 
+            mutate(Centroids = st_centroid(geometry)) 
+
+# Reproject the centroids so we can look on leaflet map
+CentroidsWGS84 <- st_transform(FarmsShp$Centroids, 4326)
+
+# Make a quick plot to look at the data
+FarmsShpWGS84 %>% 
+  leaflet() %>% 
+  addTiles(group = "Basemap") %>% 
+  addPolygons(group = "Client_nam") %>% 
+  addCircles(data = CentroidsWGS84, color = "red") %>% 
+  setView(173.40, -42.22, zoom = 5)
+
+
+
+```
+
+```{r subset data}
+
+FarmsPoints <- FarmsShp %>% 
+               dplyr::select(Client_nam, Centroids) %>% 
+               mutate(Species = "Shellfish") %>% 
+               st_drop_geometry() %>% 
+               rename(geometry = Centroids)
+
+
+```
+
+```{r save clean outputs}
+
+
+```
+
