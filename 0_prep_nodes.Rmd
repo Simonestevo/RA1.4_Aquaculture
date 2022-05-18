@@ -278,14 +278,41 @@ FarmsShpWGS84 %>%
 
 ```
 
-```{r subset data}
+Make a shp file that matches the other nodes, with the following attributes:
+
+FID = ID number
+Shape = Point
+Region = Region name (string)
+src = Source of the data (string)
+Notes = can leave empty
+Name = Farm name (string)
+Type = Aquaculture (string)
+CLASS = Farm type?
+Lat = geom
+Lon = geom
+Species = species or taxa name (string)
+
+```{r wrangle data to match other nodes}
+
+
 
 FarmsPoints <- FarmsShp %>% 
-               dplyr::select(Client_nam, Centroids) %>% 
-               mutate(Species = "Shellfish") %>% 
+               dplyr::select(OBJECTID, Client_nam, Species_Gr, Centroids) %>% 
                st_drop_geometry() %>% 
-               rename(geometry = Centroids)
+               mutate(FID = OBJECTID,
+                      SRC = "MPI",
+                      Notes = NA,
+                      Name = Client_nam,
+                      Type = "Aquaculture",
+                      Class = NA,
+                      Species = Species_Gr) %>% 
+               rename(geometry = Centroids) 
 
+FarmsPoints <- st_as_sf(FarmsPoints, crs = st_crs(FarmsShp))
+
+class(FarmsPoints)
+
+plot(st_geometry(FarmsPoints))
 
 ```
 
