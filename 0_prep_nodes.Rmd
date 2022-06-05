@@ -294,21 +294,36 @@ Species = species or taxa name (string)
 
 ```{r wrangle data to match other nodes}
 
-
-
 FarmsPoints <- FarmsShp %>% 
-               dplyr::select(OBJECTID, Client_nam, Species_Gr, Centroids) %>% 
+               dplyr::select(Client_nam, Species_Gr, Centroids) %>% 
                st_drop_geometry() %>% 
-               mutate(FID = OBJECTID,
-                      SRC = "MPI",
+               mutate(SRC = "MPI",
                       Notes = NA,
+                      Type = "Aquaculture") %>% 
+               rename(geometry = Centroids,
                       Name = Client_nam,
-                      Type = "Aquaculture",
-                      Class = NA,
-                      Species = Species_Gr) %>% 
-               rename(geometry = Centroids) 
+                      Class = Species_Gr) 
+               
+head(FarmsPoints)
+FarmsPoints <- FarmsPoints %>% 
+               st_as_sf(crs = st_crs(FarmsShp)) %>% 
+              mutate(lon = sf::st_coordinates(.)[,1],
+                lat = sf::st_coordinates(.)[,2])
 
-FarmsPoints <- st_as_sf(FarmsPoints, crs = st_crs(FarmsShp))
+RegionsShp <- st_transform(RegionsShp, crs = st_crs(FarmsPoints)) 
+
+RegionsShp <- RegionsShp %>% 
+              dplyr::select(REGC2020_1, geometry) %>% 
+              rename(Region = REGC2020_1)
+
+# ADd in regions
+
+FarmsPoints <- FarmsPoints %>% 
+               st_join(RegionsShp, join = st_intersects) %>% 
+               dplyr::select(Region, SRC, Notes, Name, Type, Class, Lat, Lon,
+                             geometry)
+
+head(FarmsPoints)
 
 class(FarmsPoints)
 
@@ -318,6 +333,7 @@ plot(st_geometry(FarmsPoints))
 
 ```{r save clean outputs}
 
+st_write(FarmsPoints, file.path(wip_r_directory, paste0(WIPFileName, ".shp")))
 
 ```
 
