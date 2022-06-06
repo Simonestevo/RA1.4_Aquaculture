@@ -6,6 +6,8 @@ output: html_document
 objective: To prepare the nodes of New Zealand's aquaculture traffic network
 ---
 
+TODO: IMPORTANT - automate author initials and version control
+
 ```{r clear space,include = FALSE}
 
 rm(list = ls())
@@ -26,29 +28,29 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE,
 
 # Projection info
 
-NumericEPSG <- 3994
+numericEPSG <- 3994
 
-CentreCoords <- c(-42.22, 173.40)
+nentreCoords <- c(-42.22, 173.40)
 
 # These will be used to label your output files, update at beginning of session
 
 pathway <- "aquaculture"
 
-Component <- "Nodes"
+component <- "Nodes"
 
 #If you need to add an additional descriptor to your file (if not just make NA)
-Label <- "OnWaterFarms"
+label <- "OnWaterFarms"
 
 # IMPORTANT - IF YOU ARE MAKING A NEW VERSION UPDATE THIS NUMBER OR YOU WILL OVERWRITE PREV VERSIONS
-Version <- "0"
+version <- "0"
 
-Author <- "SS"
+author <- "SS"
 
-CleanFileName <- paste0("Clean_", pathway, Component, "_", Author, "_", Version)
+cleanFileName <- paste0("Clean_", pathway, component, "_", author, "_", version)
 
-CleanFileName
+cleanFileName
 
-WIPFileName <- paste0("WIP_", pathway, Component, "_", Author, "_", Version)
+WIPFileName <- paste0("WIP_", pathway, component, "_", author, "_", version)
 
 WIPFileName
 
@@ -119,76 +121,23 @@ show_col(viridis_pal(option = "turbo")(20))
 
 ```{r set up directories}
 
-ProjectDirectory <- 'S:/RDS28221-BiosecurityToolbox/projectData'
+projectDirectory <- 'S:/RDS28221-BiosecurityToolbox/projectData'
 
 # Get the date
 
 today <- Sys.Date()
 
-# Create a directory to store raw inputs as received
+# Save location of raw inputs
 
-inputs <- file.path(ProjectDirectory, "1_rawInputs")
+inputs <- file.path(projectDirectory, "1_rawInputs")
 
-if (!"1_rawInputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
-  
-  dir.create(inputs)
-  
-  print("creating directory to store input files")
-  
-} else {
-  
-  print("found existing input directory")
-  
-}
+# Save location for saving current work in progress and files created in R
 
-# Create a directory to store current work in progress and files created in R
+wipR <- file.path(projectDirectory, "2_wipR")
 
-wipR <- file.path(ProjectDirectory, "2_wipR")
+# Save location for saving clean outputs
 
-if (!"2_wipR" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
-  
-  dir.create(wipR)
-  
-  print("creating directory to store R wip files")
-  
-} else {
-  
-  print("found existing wip directory")
-  
-}
-
-# Create a directory to store current work in progress and files created in GIS
-# software then used by this code
-
-wipGIS <- file.path(ProjectDirectory, "3_wipGIS")
-
-if (!"3_wipGIS" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
-  
-  dir.create(wipGIS)
-  
-  print("creating directory to store GIS wip files")
-  
-} else {
-  
-  print("found existing GIS wip directory")
-  
-}
-
-# Create a directory to store all finalised outputs
-
-cleanOutputs <- file.path(ProjectDirectory, "4_cleanOutputs")
-
-if (!"4_cleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
-  
-  dir.create(cleanOutputs)
-  
-  print("creating directory to store outputs")
-  
-} else {
-  
-  print("found existing outputs directory")
-  
-}
+cleanOutputs <- file.path(projectDirectory, "4_cleanOutputs")
 
 ```
 
@@ -196,44 +145,44 @@ if (!"4_cleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check fold
 ```{r load data, include = FALSE}
 list.files(file.path(inputs, pathway))
 
-FarmsShp <- st_read(file.path(inputs, pathway, "MPICurrentMarineFarms",
+farmsShp <- st_read(file.path(inputs, pathway, "MPICurrentMarineFarms",
                               "MPI_CurrentMarineFarms_11Dec2020.shp"))
 
 list.files(file.path(inputs, "geographic"), recursive = TRUE)
 
-RegionsShp <- st_read(file.path(inputs, "geographic", "statsnzregional-council-2020-generalised-SHP",
+regionsShp <- st_read(file.path(inputs, "geographic", "statsnzregional-council-2020-generalised-SHP",
                               "regional-council-2020-generalised.shp"))
 ```
 
 ```{r look at data}
 
 # Check the projection
-st_crs(FarmsShp)
+st_crs(farmsShp)
 
 # Check attributes and for NA vals
-summary(FarmsShp)
+summary(farmsShp)
 
 # Remove the Z dimension (depth??)
 
-FarmsShp <- st_zm(FarmsShp)
+farmsShp <- st_zm(farmsShp)
 
 # Project into WGS84 for the leaflet map
-FarmsShpWGS84 <- st_transform(FarmsShp, 4326)
-RegionsShpWGS84 <- st_transform(RegionsShp, 4326) %>% 
+farmsShpWGS84 <- st_transform(farmsShp, 4326)
+regionsShpWGS84 <- st_transform(regionsShp, 4326) %>% 
                    mutate(col = "green")
 
-RegionPal <- colorFactor("viridis", domain = as.factor(RegionsShpWGS84$REGC2020_1))
+regionPal <- colorFactor("viridis", domain = as.factor(regionsShpWGS84$REGC2020_1))
 
 # Check it looks right
 
-st_crs(FarmsShpWGS84)
+st_crs(farmsShpWGS84)
 
 # Make a quick plot to look at the data
-FarmsShpWGS84 %>% 
+farmsShpWGS84 %>% 
   leaflet() %>% 
   addTiles(group = "Basemap") %>% 
-  addPolygons(data = RegionsShpWGS84, weight=2,col = 'black',
-              fillColor = ~RegionPal(REGC2020_1),
+  addPolygons(data = regionsShpWGS84, weight=2,col = 'black',
+              fillColor = ~regionPal(REGC2020_1),
               highlightOptions = highlightOptions(color='white',weight=1,
                                                   bringToFront = TRUE)) %>% 
     addPolygons(group = "Client_nam") %>% 
@@ -243,18 +192,18 @@ FarmsShpWGS84 %>%
 
 ```{r get centroids}
 
-FarmsShp <- FarmsShp %>% 
+farmsShp <- farmsShp %>% 
             mutate(Centroids = st_centroid(geometry)) 
 
 # Reproject the centroids so we can look on leaflet map
-CentroidsWGS84 <- st_transform(FarmsShp$Centroids, 4326)
+centroidsWGS84 <- st_transform(farmsShp$Centroids, 4326)
 
 # Make a quick plot to look at the data
-FarmsShpWGS84 %>% 
+farmsShpWGS84 %>% 
   leaflet() %>% 
   addTiles(group = "Basemap") %>% 
   addPolygons(group = "Client_nam") %>% 
-  addCircles(data = CentroidsWGS84, color = "red") %>% 
+  addCircles(data = centroidsWGS84, color = "red") %>% 
   setView(173.40, -42.22, zoom = 5)
 
 ```
@@ -275,7 +224,7 @@ Species = species or taxa name (string)
 
 ```{r wrangle data to match other nodes}
 
-FarmsPoints <- FarmsShp %>% 
+FarmsPoints <- farmsShp %>% 
                dplyr::select(Client_nam, Species_Gr, Centroids) %>% 
                st_drop_geometry() %>% 
                mutate(SRC = "MPI",
@@ -287,20 +236,20 @@ FarmsPoints <- FarmsShp %>%
                
 head(FarmsPoints)
 FarmsPoints <- FarmsPoints %>% 
-               st_as_sf(crs = st_crs(FarmsShp)) %>% 
+               st_as_sf(crs = st_crs(farmsShp)) %>% 
               mutate(Lon = sf::st_coordinates(.)[,1],
                 Lat = sf::st_coordinates(.)[,2])
 
-RegionsShp <- st_transform(RegionsShp, crs = st_crs(FarmsPoints)) 
+regionsShp <- st_transform(regionsShp, crs = st_crs(FarmsPoints)) 
 
-RegionsShp <- RegionsShp %>% 
+regionsShp <- regionsShp %>% 
               dplyr::select(REGC2020_1, geometry) %>% 
               rename(Region = REGC2020_1)
 
 # Add in regions
 
 FarmsPoints <- FarmsPoints %>% 
-               st_join(RegionsShp, join = st_intersects) %>% 
+               st_join(regionsShp, join = st_intersects) %>% 
                dplyr::select(Region, SRC, Notes, Name, Type, Class, Lat, Lon,
                              geometry)
 
@@ -325,7 +274,7 @@ plot(st_geometry(FarmsPoints))
 
 # When final outputs are ready save them in the clean outputs folder
 
-# st_write(FarmsPoints, file.path(cleanOutputs, paste0(WIPFileName, ".shp")))
+st_write(FarmsPoints, file.path(cleanOutputs, paste0(cleanFileName, ".shp")))
 
 ```
 
