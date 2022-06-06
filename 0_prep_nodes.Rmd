@@ -32,22 +32,23 @@ CentreCoords <- c(-42.22, 173.40)
 
 # These will be used to label your output files, update at beginning of session
 
-Pathway <- "Aquaculture"
+pathway <- "aquaculture"
 
 Component <- "Nodes"
 
 #If you need to add an additional descriptor to your file (if not just make NA)
 Label <- "OnWaterFarms"
 
+# IMPORTANT - IF YOU ARE MAKING A NEW VERSION UPDATE THIS NUMBER OR YOU WILL OVERWRITE PREV VERSIONS
 Version <- "0"
 
 Author <- "SS"
 
-CleanFileName <- paste0("Clean_", Pathway, Component, "_", Author, "_", Version)
+CleanFileName <- paste0("Clean_", pathway, Component, "_", Author, "_", Version)
 
 CleanFileName
 
-WIPFileName <- paste0("WIP_", Pathway, Component, "_", Author, "_", Version)
+WIPFileName <- paste0("WIP_", pathway, Component, "_", Author, "_", Version)
 
 WIPFileName
 
@@ -118,7 +119,7 @@ show_col(viridis_pal(option = "turbo")(20))
 
 ```{r set up directories}
 
-ProjectDirectory <- 'C:/Users/ssimone/OneDrive - Deakin University/MSEAC/Data/test_structure/CrossProjectData'
+ProjectDirectory <- 'S:/RDS28221-BiosecurityToolbox/projectData'
 
 # Get the date
 
@@ -126,9 +127,9 @@ today <- Sys.Date()
 
 # Create a directory to store raw inputs as received
 
-inputs <- file.path(ProjectDirectory, "1_Inputs")
+inputs <- file.path(ProjectDirectory, "1_rawInputs")
 
-if (!"1_Inputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+if (!"1_rawInputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
   
   dir.create(inputs)
   
@@ -142,11 +143,11 @@ if (!"1_Inputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has
 
 # Create a directory to store current work in progress and files created in R
 
-wip_r_directory <- file.path(ProjectDirectory, "2_WorkInProgressR")
+wipR <- file.path(ProjectDirectory, "2_wipR")
 
-if (!"2_WorkInProgressR" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+if (!"2_wipR" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
   
-  dir.create(wip_r_directory)
+  dir.create(wipR)
   
   print("creating directory to store R wip files")
   
@@ -159,11 +160,11 @@ if (!"2_WorkInProgressR" %in% basename(list.dirs(ProjectDirectory))) { # Check f
 # Create a directory to store current work in progress and files created in GIS
 # software then used by this code
 
-wip_gis_directory <- file.path(ProjectDirectory, "3_WorkInProgressGIS")
+wipGIS <- file.path(ProjectDirectory, "3_wipGIS")
 
-if (!"3_WorkInProgressGIS" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+if (!"3_wipGIS" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
   
-  dir.create(wip_gis_directory)
+  dir.create(wipGIS)
   
   print("creating directory to store GIS wip files")
   
@@ -175,11 +176,11 @@ if (!"3_WorkInProgressGIS" %in% basename(list.dirs(ProjectDirectory))) { # Check
 
 # Create a directory to store all finalised outputs
 
-processed_output_directory <- file.path(ProjectDirectory, "4_CleanOutputs")
+cleanOutputs <- file.path(ProjectDirectory, "4_cleanOutputs")
 
-if (!"4_CleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
+if (!"4_cleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check folder has not already been created
   
-  dir.create(processed_output_directory)
+  dir.create(cleanOutputs)
   
   print("creating directory to store outputs")
   
@@ -189,36 +190,18 @@ if (!"4_CleanOutputs" %in% basename(list.dirs(ProjectDirectory))) { # Check fold
   
 }
 
-# # Create a sub-directory to store finalised outputs by date
-# 
-# todays_processed_output_directory <- file.path(processed_output_directory, 
-#                                                paste(today, "4_CleanOutputs",
-#                                                      sep = "_"))
-# 
-# if (!today %in% basename(list.dirs(processed_output_directory))) { # Check folder has not already been created
-#   
-#   dir.create(todays_processed_output_directory)
-#   
-#   print("creating directory to store today's final outputs")
-#   
-# } else {
-#   
-#   print("found existing outputs directory")
-#   
-# }
-
 ```
 
 
 ```{r load data, include = FALSE}
-list.files(file.path(inputs, Pathway))
+list.files(file.path(inputs, pathway))
 
-FarmsShp <- st_read(file.path(inputs, Pathway, "MPICurrentMarineFarms",
+FarmsShp <- st_read(file.path(inputs, pathway, "MPICurrentMarineFarms",
                               "MPI_CurrentMarineFarms_11Dec2020.shp"))
 
-list.files(file.path(inputs, "Geographic"), recursive = TRUE)
+list.files(file.path(inputs, "geographic"), recursive = TRUE)
 
-RegionsShp <- st_read(file.path(inputs, "Geographic", "statsnzregional-council-2020-generalised-SHP",
+RegionsShp <- st_read(file.path(inputs, "geographic", "statsnzregional-council-2020-generalised-SHP",
                               "regional-council-2020-generalised.shp"))
 ```
 
@@ -274,8 +257,6 @@ FarmsShpWGS84 %>%
   addCircles(data = CentroidsWGS84, color = "red") %>% 
   setView(173.40, -42.22, zoom = 5)
 
-
-
 ```
 
 Make a shp file that matches the other nodes, with the following attributes:
@@ -307,8 +288,8 @@ FarmsPoints <- FarmsShp %>%
 head(FarmsPoints)
 FarmsPoints <- FarmsPoints %>% 
                st_as_sf(crs = st_crs(FarmsShp)) %>% 
-              mutate(lon = sf::st_coordinates(.)[,1],
-                lat = sf::st_coordinates(.)[,2])
+              mutate(Lon = sf::st_coordinates(.)[,1],
+                Lat = sf::st_coordinates(.)[,2])
 
 RegionsShp <- st_transform(RegionsShp, crs = st_crs(FarmsPoints)) 
 
@@ -316,7 +297,7 @@ RegionsShp <- RegionsShp %>%
               dplyr::select(REGC2020_1, geometry) %>% 
               rename(Region = REGC2020_1)
 
-# ADd in regions
+# Add in regions
 
 FarmsPoints <- FarmsPoints %>% 
                st_join(RegionsShp, join = st_intersects) %>% 
@@ -331,9 +312,20 @@ plot(st_geometry(FarmsPoints))
 
 ```
 
+```{r save wip outputs}
+
+# We are still missing the on shore nodes which need to be added to the final clean
+# dataset, but the farm only data can be saved in the wip outputs if needed
+
+# st_write(FarmsPoints, file.path(wipR, paste0(WIPFileName, ".shp")))
+
+```
+
 ```{r save clean outputs}
 
-st_write(FarmsPoints, file.path(wip_r_directory, paste0(WIPFileName, ".shp")))
+# When final outputs are ready save them in the clean outputs folder
+
+# st_write(FarmsPoints, file.path(cleanOutputs, paste0(WIPFileName, ".shp")))
 
 ```
 
