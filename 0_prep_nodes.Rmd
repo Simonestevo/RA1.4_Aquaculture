@@ -30,7 +30,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE,
 
 numericEPSG <- 3994
 
-nentreCoords <- c(-42.22, 173.40)
+CentreCoords <- c(-42.22, 173.40)
 
 # These will be used to label your output files, update at beginning of session
 
@@ -39,10 +39,10 @@ pathway <- "aquaculture"
 component <- "Nodes"
 
 #If you need to add an additional descriptor to your file (if not just make NA)
-label <- "OnWaterFarms"
+label <- "onWaterFarms"
 
 # IMPORTANT - IF YOU ARE MAKING A NEW VERSION UPDATE THIS NUMBER OR YOU WILL OVERWRITE PREV VERSIONS
-version <- "0"
+version <- Sys.Date()
 
 author <- "SS"
 
@@ -131,9 +131,13 @@ today <- Sys.Date()
 
 inputs <- file.path(projectDirectory, "1_rawInputs")
 
-# Save location for saving current work in progress and files created in R
+# Save location for saving current work in progress and files created by code
 
-wipR <- file.path(projectDirectory, "2_wipR")
+codeWIP <- file.path(projectDirectory, "2_codeWIP")
+
+# Save location for saving current work in progress and files not created by code
+
+nonCodeWIP <- file.path(projectDirectory, "3_nonCodeWIP")
 
 # Save location for saving clean outputs
 
@@ -152,6 +156,12 @@ list.files(file.path(inputs, "geographic"), recursive = TRUE)
 
 regionsShp <- st_read(file.path(inputs, "geographic", "statsnzregional-council-2020-generalised-SHP",
                               "regional-council-2020-generalised.shp"))
+
+abbreviatedNames <- read.csv(file.path(nonCodeWIP,
+                                "Aqua_abbreviated_names_KH.txt"),
+                                header = TRUE,
+                                sep = ",")
+
 ```
 
 ```{r look at data}
@@ -233,7 +243,22 @@ FarmsPoints <- farmsShp %>%
                rename(geometry = Centroids,
                       Name = Client_nam,
                       Class = Species_Gr) 
-               
+
+# Check 'class' variable bc it is really long
+
+unique(FarmsPoints$Class)
+
+FarmsPoints <- FarmsPoints %>% 
+               mutate(Class = str_replace_all(Class, "and", "&"),
+                      Class = str_replace_all(Class, "filter", "fltr"),
+                      Class = str_replace_all(Class, "feeding", "feed"),
+                      Class = str_replace_all(Class, "Shellfish", "Shllfsh"),
+                      Class = str_replace_all(Class, "Crustacean", "Crstcn"),
+                      Class = str_replace_all(Class, "Finfish", "Fnfsh"),
+                      Class = str_replace_all(Class, "Algae/Sponges", "Alg/Spnges"))
+
+unique(FarmsPoints$Class)
+         
 head(FarmsPoints)
 FarmsPoints <- FarmsPoints %>% 
                st_as_sf(crs = st_crs(farmsShp)) %>% 
@@ -261,20 +286,42 @@ plot(st_geometry(FarmsPoints))
 
 ```
 
+```{r names}
+
+# Merge abbreviated and full names in case we ever need to match them up
+
+fullNames <- FarmsPoints %>% 
+             dplyr::select(Name) %>% 
+             st_drop_geometry(.) %>% 
+             unique(.) %>% 
+             arrange(Name)
+
+abbreviatedNames <- abbreviatedNames %>% 
+                    arrange(name) 
+
+farmNameKey <- cbind(abbreviatedNames, fullNames)
+             
+
+```
+
+
 ```{r save wip outputs}
 
 # We are still missing the on shore nodes which need to be added to the final clean
 # dataset, but the farm only data can be saved in the wip outputs if needed
 
-# st_write(FarmsPoints, file.path(wipR, paste0(WIPFileName, ".shp")))
+# st_write(FarmsPoints, file.path(codeWIP, paste0(WIPFileName, ".shp")))
 
 ```
+
 
 ```{r save clean outputs}
 
 # When final outputs are ready save them in the clean outputs folder
 
 st_write(FarmsPoints, file.path(cleanOutputs, paste0(cleanFileName, ".shp")))
+
+write.csv(farmNameKey, file.path(cleanOutputs, paste0("aquacultureNodesNameKey", ".csv")))
 
 ```
 
